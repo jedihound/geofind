@@ -904,23 +904,49 @@ function renderAll() {
 
   // Deposit pins on top
   fd.forEach((dep, i) => {
-    const color  = commColor(dep.c1);
-    const comods = [dep.c1, dep.c2, dep.c3].filter(Boolean).join(' · ');
+    // Support both pre-loaded (c1/c2/c3) and live search (commod1/commod2/commod3) deposit formats
+    const c1     = dep.c1 || dep.commod1 || '';
+    const c2     = dep.c2 || dep.commod2 || '';
+    const c3     = dep.c3 || dep.commod3 || '';
+    const fm     = dep.fm || dep.formation || '';
+    const co     = dep.co || dep.county || '';
+    const note   = dep.note || dep.notes || '';
+    const acc    = dep.acc || dep.access || 'free';
+    const depId  = dep.id || '';
+    const depUrl = dep.url || '';
+
+    const color  = commColor(c1);
+    const comods = [c1, c2, c3].filter(Boolean).join(' · ');
     const marker = L.marker([dep.lat, dep.lon], { icon: makePin(color) });
-    marker.bindPopup(`<div>
+
+    // Build popup id for dynamic content loading
+    const popupId = `popup-${depId || i}`;
+
+    marker.bindPopup(`<div id="${popupId}">
       <div class="pop-name" style="color:${color}">${dep.name}</div>
-      ${accBadge(dep.acc)}
-      <div class="pop-commod" style="color:${color}">${comods}</div>
-      <div class="pop-row"><span>Formation</span><span style="font-size:10px;max-width:130px;text-align:right">${dep.fm}</span></div>
-      <div class="pop-row"><span>County</span><span>${dep.co} Co, OR</span></div>
-      <div class="pop-note">${dep.note}</div>
+      ${accBadge(acc)}
+      <div class="pop-commod" style="color:${color}">${comods || 'Mineral deposit'}</div>
+      <div class="pop-row"><span>Formation</span><span style="font-size:10px;max-width:140px;text-align:right;color:${fm?'#1D9E75':'#B4B2A9'}">${fm || 'Loading...'}</span></div>
+      ${co ? `<div class="pop-row"><span>County</span><span>${co}</span></div>` : ''}
+      ${dep.devSt || dep.devSt ? `<div class="pop-row"><span>Status</span><span style="font-size:10px">${dep.devSt||''}</span></div>` : ''}
+      <div class="pop-note" id="${popupId}-note">${note}</div>
       <div class="pop-acts">
         <a class="pop-btn sat" href="https://maps.google.com/?q=${dep.lat},${dep.lon}&t=k" target="_blank">🛰 Satellite view</a>
         <a class="pop-btn" href="https://maps.google.com/?q=${dep.lat},${dep.lon}" target="_blank">📍 Directions</a>
-        <button class="pop-btn ask" onclick="window.sendPrompt&&sendPrompt('Tell me more about rockhounding at ${dep.name.replace(/'/g,'')} in Oregon — exact spots, tools to bring, best season, and what ${dep.c1} to look for.')">✦ Ask Claude ↗</button>
+        ${depUrl ? `<a class="pop-btn" href="${depUrl}" target="_blank">📋 USGS record</a>` : ''}
+        <button class="pop-btn ask" onclick="window.sendPrompt&&sendPrompt('Tell me more about rockhounding at ${dep.name.replace(/['"]/g,'')} — the geology, what ${c1} to expect, access tips, and best season.')">✦ Ask Claude ↗</button>
       </div>
     </div>`);
-    marker.on('click', () => { switchTab('dep'); highlightItem('di-' + i); });
+
+    // When popup opens, fetch full MRDS record to enrich formation + notes
+    marker.on('popupopen', () => {
+      if (depId && depId !== 'undefined') {
+        loadFullRecord(depId, popupId, fm);
+      }
+      switchTab('dep');
+      highlightItem('di-' + i);
+    });
+
     depGroup.addLayer(marker);
     depMarkers.push(marker);
   });
@@ -991,8 +1017,41 @@ function goHome() {
 </body>
 </html>
 <script>
-// ── Live Search Extension ─────────────────────────────────────
 const WORKER_URL = 'https://geofind-api.jedwerner.workers.dev';
+
+// ── Load full MRDS record when a pin popup opens ──────────────
+async function loadFullRecord(depId, popupId, existingFormation) {
+  try {
+    const res  = await fetch(WORKER_URL + '/deposit?id=' + depId);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.error) return;
+    const popup = document.getElementById(popupId);
+    if (!popup) return;
+    popup.querySelectorAll('.pop-row').forEach(row => {
+      if (row.textContent.includes('Formation')) {
+        const val = row.querySelector('span:last-child');
+        if (val) { val.textContent = data.formation || existingFormation || 'Unknown'; val.style.color = '#1D9E75'; }
+      }
+      if (row.textContent.includes('County') && data.county) {
+        const val = row.querySelector('span:last-child');
+        if (val) val.textContent = data.county + (data.state ? ', ' + data.state : '');
+      }
+    });
+    const noteEl = document.getElementById(popupId + '-note');
+    if (noteEl && (data.description || data.ore || data.workings)) {
+      const parts = [];
+      if (data.description) parts.push(data.description);
+      if (data.ore)         parts.push('Ore: ' + data.ore);
+      if (data.workings)    parts.push('Workings: ' + data.workings);
+      if (data.land_status) parts.push('Land status: ' + data.land_status);
+      if (parts.length) noteEl.textContent = parts.join(' · ');
+    }
+  } catch(e) { console.log('Full record error:', e.message); }
+}
+
+// ── Live Search Extension ─────────────────────────────────────
+
 
 function setSearchStatus(msg, color) {
   const el = document.getElementById('liveSearchStatus');
