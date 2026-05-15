@@ -931,12 +931,14 @@ function renderAll() {
     const popupId = `popup-${depId || i}`;
 
     // Extra fields for DOGAMI MILO deposits
+    const src2      = dep.source || '';
     const lithology = dep.lithology || '';
     const rockType  = dep.rockType  || '';
     const geoAge    = dep.age       || '';
-    const srcBadge  = src === 'DOGAMI MILO'    ? '<span class="badge" style="background:#EEEDFE;color:#534AB7">DOGAMI MILO</span> '
-                    : src === 'Community Report' ? '<span class="badge" style="background:#FAEEDA;color:#633806">Community</span> '
-                    : '<span class="badge" style="background:#E1F5EE;color:#085041">USGS MRDS</span> ';
+    const srcBadge  = src2 === 'DOGAMI MILO'     ? '<span class="badge" style="background:#EEEDFE;color:#534AB7">DOGAMI MILO</span> '
+                    : src2 === 'Community Report' ? '<span class="badge" style="background:#FAEEDA;color:#633806">Community</span> '
+                    : src2 === 'USGS MRDS'        ? '<span class="badge" style="background:#E1F5EE;color:#085041">USGS MRDS</span> '
+                    : '';
 
     marker.bindPopup(`<div id="${popupId}">
       <div class="pop-name" style="color:${color}">${dep.name}</div>
