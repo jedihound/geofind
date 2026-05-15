@@ -970,19 +970,32 @@ function renderSidebar() {
   list.innerHTML = '';
 
   if (activeTab === 'dep') {
-    const fd = activeChip ? loc.deps.filter(d=>[d.c1,d.c2,d.c3,d.note].join(' ').toLowerCase().includes(activeChip)) : loc.deps;
+    const fd = activeChip
+      ? loc.deps.filter(d => [d.c1||d.commod1||'', d.c2||d.commod2||'', d.c3||d.commod3||'', d.note||d.notes||''].join(' ').toLowerCase().includes(activeChip))
+      : loc.deps;
     if (!fd.length) { list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#888780;font-size:12px">No sites match this filter.</div>'; return; }
     fd.forEach((dep, i) => {
-      const color = commColor(dep.c1);
+      // Handle both pre-loaded (c1/c2/c3) and live search (commod1/commod2/commod3) formats
+      const c1  = dep.c1 || dep.commod1 || '';
+      const c2  = dep.c2 || dep.commod2 || '';
+      const c3  = dep.c3 || dep.commod3 || '';
+      const fm  = dep.fm || dep.formation || '';
+      const co  = dep.co || dep.county || '';
+      const acc = dep.acc || dep.access || 'free';
+      const src = dep.source || '';
+      const color = commColor(c1, dep.sourceColor);
+      const sourceLabel = src === 'Community Report' ? '🟠 Community'
+        : src === 'USGS MRDS' ? '🟢 USGS'
+        : acc === 'fee' ? '🟡 Fee dig'
+        : acc === 'private' ? '🔴 Private'
+        : '🟢 Free';
       const el = document.createElement('div');
       el.className = 'sitem'; el.id = 'di-' + i;
-      const depSource = dep.source || dep.sourceColor ? dep.source : null;
-      const sourceLabel = depSource === 'Community Report' ? '🟠 Community' : depSource === 'USGS MRDS' ? '🟢 USGS' : (dep.acc==='free'?'🟢 Free':dep.acc==='fee'?'🟡 Fee dig':'🔴 Private');
       el.innerHTML = `<div style="position:absolute;left:0;top:0;width:3px;height:100%;background:${color};border-radius:2px 0 0 2px"></div>
         <div class="sname">${dep.name}</div>
-        <div class="scommod">${[c1,c2,c3].filter(Boolean).join(' · ')}</div>
-        <div class="smeta">${sourceLabel} · ${co || ''}</div>
-        <div class="smeta" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#B4B2A9">${fm || ''}</div>`;
+        <div class="scommod">${[c1,c2,c3].filter(Boolean).join(' · ') || 'Mineral deposit'}</div>
+        <div class="smeta">${sourceLabel}${co ? ' · ' + co : ''}</div>
+        <div class="smeta" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#B4B2A9">${fm || 'Formation loading...'}</div>`;
       el.onclick = () => {
         const idx = loc.deps.indexOf(dep);
         if (idx >= 0 && depMarkers[idx]) { map.setView([dep.lat, dep.lon], 13); depMarkers[idx].openPopup(); }
