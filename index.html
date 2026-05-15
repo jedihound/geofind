@@ -541,15 +541,23 @@ html, body { height: 100%; font-family: 'Syne', sans-serif; background: var(--st
         </div>
       </div>
 
-      <!-- Search placeholder -->
-      <div class="search-placeholder">
-        <div class="search-placeholder-title">Search any location — coming soon</div>
-        <div class="search-placeholder-sub">Live AI-powered search for any location worldwide is in development. Enter your location below to be notified when it launches.</div>
-        <div class="search-row-placeholder">
-          <input class="search-input-placeholder" type="text" placeholder="e.g. Boise, Idaho or 43.61, -116.20" disabled/>
-          <button class="search-btn-placeholder" disabled>Search</button>
+      <!-- Live Search -->
+      <div class="search-placeholder" id="liveSearchBox">
+        <div class="search-placeholder-title">🔍 Search any location worldwide</div>
+        <div class="search-placeholder-sub">Enter any city, region, or coordinates — GeoFind will search USGS records, community reports, and run geological inference in real time.</div>
+        <div class="search-row-placeholder" style="flex-wrap:wrap;gap:8px;">
+          <input class="search-input-placeholder" id="liveLocInput" type="text" placeholder="e.g. Boise, Idaho  or  Tucson, Arizona"/>
+          <select class="search-input-placeholder" id="liveRadiusSel" style="flex:0;min-width:110px;max-width:130px">
+            <option value="30">30 miles</option>
+            <option value="60" selected>60 miles</option>
+            <option value="100">100 miles</option>
+            <option value="150">150 miles</option>
+          </select>
+          <button onclick="startLiveSearch()" id="liveSearchBtn" style="height:42px;padding:0 20px;background:var(--teal);color:#fff;border:none;border-radius:var(--radius-sm);font-family:'Syne',sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity .15s;">
+            Search ↗
+          </button>
         </div>
-        <span class="coming-soon-badge">Live search · Coming soon</span>
+        <div id="liveSearchStatus" style="margin-top:10px;font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--stone3);min-height:18px;"></div>
       </div>
     </div>
   </section>
@@ -982,3 +990,60 @@ function goHome() {
 </script>
 </body>
 </html>
+<script>
+// ── Live Search Extension ─────────────────────────────────────
+const WORKER_URL = 'https://geofind-api.jedwerner.workers.dev';
+
+function setSearchStatus(msg, color) {
+  const el = document.getElementById('liveSearchStatus');
+  if (el) { el.textContent = msg; el.style.color = color || '#888780'; }
+}
+
+async function geocodeInput(input) {
+  const m = input.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+  if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]), name: input };
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(input)}&format=json&limit=1`, { headers: {'User-Agent':'GeoFind/1.0'} });
+  const data = await res.json();
+  if (!data.length) throw new Error(`Could not find: "${input}"`);
+  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), name: data[0].display_name };
+}
+
+async function startLiveSearch() {
+  const input  = document.getElementById('liveLocInput').value.trim();
+  const radius = parseInt(document.getElementById('liveRadiusSel').value);
+  const btn    = document.getElementById('liveSearchBtn');
+  if (!input) { document.getElementById('liveLocInput').focus(); setSearchStatus('Please enter a location.','#D85A30'); return; }
+  btn.textContent='Searching…'; btn.style.opacity='0.7'; btn.disabled=true;
+  setSearchStatus('📍 Locating '+input+'…');
+  try {
+    const {lat,lon,name} = await geocodeInput(input);
+    setSearchStatus('🔍 Querying USGS + community sources…');
+    const res = await fetch(WORKER_URL+'/search', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({location:name,lat,lon,radius}) });
+    if (!res.ok) { const e=await res.json(); throw new Error(e.error||'Worker error'); }
+    const data = await res.json();
+    setSearchStatus('✅ Found '+data.deposits.length+' sites · '+data.zones.length+' zones','#1D9E75');
+    const counts={};
+    data.deposits.forEach(d=>{[d.commod1,d.commod2,d.commod3].filter(Boolean).forEach(c=>{const k=c.toLowerCase().split(' ')[0];counts[k]=(counts[k]||0)+1;});});
+    const chips=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,7).map(([k])=>k);
+    LOCATIONS['_live']={
+      name,region:input+' · '+radius+' mi',
+      center:[lat,lon], zoom:radius<=30?11:radius<=60?10:8,
+      radius:radius*1609.34,
+      fieldTip:'What are the best rockhounding tips for the '+input+' area?',
+      chips,
+      deps:data.deposits.map(d=>({name:d.name,lat:d.lat,lon:d.lon,c1:d.commod1||'',c2:d.commod2||'',c3:d.commod3||'',acc:d.access||'free',co:d.county||'',fm:d.formation||'',note:d.notes||''})),
+      zones:data.zones.map(z=>({name:z.name,rock:z.rock,mins:z.minerals||[],conf:z.conf||70,why:z.why,bounds:z.bounds||[],acc:z.access||''})),
+    };
+    btn.textContent='Search ↗'; btn.style.opacity='1'; btn.disabled=false;
+    initMap('_live');
+  } catch(err) {
+    setSearchStatus('⚠ '+(err.message||'Search failed'),'#D85A30');
+    btn.textContent='Search ↗'; btn.style.opacity='1'; btn.disabled=false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const el=document.getElementById('liveLocInput');
+  if(el) el.addEventListener('keydown',e=>{if(e.key==='Enter')startLiveSearch();});
+});
+</script>
