@@ -706,7 +706,9 @@ let currentLocation = null;
 
 const TILE_LAYERS = {};
 
-function commColor(c) {
+function commColor(c, sourceColor) {
+  // If the deposit has a source color override, use it as a tint signal
+  // but still use commodity color for the pin itself
   const s = (c||'').toLowerCase();
   if (s.includes('sunstone')||s.includes('feldspar')) return '#EF9F27';
   if (s.includes('obsidian'))  return '#5F5E5A';
@@ -714,11 +716,17 @@ function commColor(c) {
   if (s.includes('fire opal')||s.includes('opal')) return '#D85A30';
   if (s.includes('agate')||s.includes('chalcedony')||s.includes('carnelian')) return '#378ADD';
   if (s.includes('jasper')||s.includes('picture')) return '#D4537E';
-  if (s.includes('thunderegg')) return '#7F77DD';
-  if (s.includes('petrified')||s.includes('limb')) return '#639922';
-  if (s.includes('quartz')||s.includes('diorite')) return '#5DCAA5';
-  if (s.includes('zeolite')||s.includes('calcite')||s.includes('chlorite')) return '#9B6FA5';
-  if (s.includes('olivine')||s.includes('augite')||s.includes('plagioclase')) return '#639922';
+  if (s.includes('thunderegg')||s.includes('geode')) return '#7F77DD';
+  if (s.includes('petrified')||s.includes('limb')||s.includes('wood')) return '#639922';
+  if (s.includes('quartz')||s.includes('crystal')) return '#5DCAA5';
+  if (s.includes('zeolite')||s.includes('calcite')) return '#9B6FA5';
+  if (s.includes('garnet')||s.includes('gem')) return '#C04878';
+  if (s.includes('olivine')||s.includes('augite')) return '#639922';
+  if (s.includes('silver')) return '#888780';
+  if (s.includes('copper')) return '#D85A30';
+  if (s.includes('iron')) return '#7A6F5E';
+  // Fall back to source color if no commodity match
+  if (sourceColor) return sourceColor;
   return '#1D9E75';
 }
 
@@ -968,11 +976,13 @@ function renderSidebar() {
       const color = commColor(dep.c1);
       const el = document.createElement('div');
       el.className = 'sitem'; el.id = 'di-' + i;
+      const depSource = dep.source || dep.sourceColor ? dep.source : null;
+      const sourceLabel = depSource === 'Community Report' ? '🟠 Community' : depSource === 'USGS MRDS' ? '🟢 USGS' : (dep.acc==='free'?'🟢 Free':dep.acc==='fee'?'🟡 Fee dig':'🔴 Private');
       el.innerHTML = `<div style="position:absolute;left:0;top:0;width:3px;height:100%;background:${color};border-radius:2px 0 0 2px"></div>
         <div class="sname">${dep.name}</div>
-        <div class="scommod">${[dep.c1,dep.c2,dep.c3].filter(Boolean).join(' · ')}</div>
-        <div class="smeta">${dep.co} Co · ${dep.acc==='free'?'🟢 Free':dep.acc==='fee'?'🟡 Fee dig':'🔴 Private/restricted'}</div>
-        <div class="smeta" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#B4B2A9">${dep.fm}</div>`;
+        <div class="scommod">${[c1,c2,c3].filter(Boolean).join(' · ')}</div>
+        <div class="smeta">${sourceLabel} · ${co || ''}</div>
+        <div class="smeta" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#B4B2A9">${fm || ''}</div>`;
       el.onclick = () => {
         const idx = loc.deps.indexOf(dep);
         if (idx >= 0 && depMarkers[idx]) { map.setView([dep.lat, dep.lon], 13); depMarkers[idx].openPopup(); }
