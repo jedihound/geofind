@@ -930,18 +930,29 @@ function renderAll() {
     // Build popup id for dynamic content loading
     const popupId = `popup-${depId || i}`;
 
+    // Extra fields for DOGAMI MILO deposits
+    const lithology = dep.lithology || '';
+    const rockType  = dep.rockType  || '';
+    const geoAge    = dep.age       || '';
+    const srcBadge  = src === 'DOGAMI MILO'    ? '<span class="badge" style="background:#EEEDFE;color:#534AB7">DOGAMI MILO</span> '
+                    : src === 'Community Report' ? '<span class="badge" style="background:#FAEEDA;color:#633806">Community</span> '
+                    : '<span class="badge" style="background:#E1F5EE;color:#085041">USGS MRDS</span> ';
+
     marker.bindPopup(`<div id="${popupId}">
       <div class="pop-name" style="color:${color}">${dep.name}</div>
-      ${accBadge(acc)}
+      ${srcBadge}${accBadge(acc)}
       <div class="pop-commod" style="color:${color}">${comods || 'Mineral deposit'}</div>
       <div class="pop-row"><span>Formation</span><span style="font-size:10px;max-width:140px;text-align:right;color:${fm?'#1D9E75':'#B4B2A9'}">${fm || 'Loading...'}</span></div>
-      ${co ? `<div class="pop-row"><span>County</span><span>${co}</span></div>` : ''}
-      ${dep.devSt || dep.devSt ? `<div class="pop-row"><span>Status</span><span style="font-size:10px">${dep.devSt||''}</span></div>` : ''}
+      ${lithology ? `<div class="pop-row"><span>Lithology</span><span style="font-size:10px;max-width:140px;text-align:right">${lithology}</span></div>` : ''}
+      ${rockType  ? `<div class="pop-row"><span>Rock type</span><span style="font-size:10px;max-width:140px;text-align:right">${rockType}</span></div>` : ''}
+      ${geoAge    ? `<div class="pop-row"><span>Age</span><span style="font-size:10px">${geoAge}</span></div>` : ''}
+      ${co ? `<div class="pop-row"><span>County</span><span>${co}, OR</span></div>` : ''}
+      ${dep.devSt ? `<div class="pop-row"><span>Status</span><span style="font-size:10px">${dep.devSt}</span></div>` : ''}
       <div class="pop-note" id="${popupId}-note">${note}</div>
       <div class="pop-acts">
-        <a class="pop-btn sat" href="https://maps.google.com/?q=${dep.lat},${dep.lon}&t=k" target="_blank">🛰 Satellite view</a>
+        <a class="pop-btn sat" href="https://maps.google.com/?q=${dep.lat},${dep.lon}&t=k" target="_blank">🛰 Satellite</a>
         <a class="pop-btn" href="https://maps.google.com/?q=${dep.lat},${dep.lon}" target="_blank">📍 Directions</a>
-        ${depUrl ? `<a class="pop-btn" href="${depUrl}" target="_blank">📋 USGS record</a>` : ''}
+        ${depUrl ? `<a class="pop-btn" href="${depUrl}" target="_blank">📋 Record</a>` : ''}
         <button class="pop-btn ask" onclick="window.sendPrompt&&sendPrompt('Tell me more about rockhounding at ${dep.name.replace(/['"]/g,'')} — the geology, what ${c1} to expect, access tips, and best season.')">✦ Ask Claude ↗</button>
       </div>
     </div>`);
