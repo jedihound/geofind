@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GeoFind — Rockhound Mineral Finder</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+<style>
+/* ── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --teal:        #1D9E75;
+  --teal-dark:   #085041;
+  --teal-light:  #E1F5EE;
+  --purple:      #534AB7;
+  --purple-light:#EEEDFE;
+  --stone:       #2C2C2A;
+  --stone2:      #5F5E5A;
+  --stone3:      #888780;
+  --stone4:      #B4B2A9;
+  --stone5:      #D3D1C7;
+  --stone6:      #F1EFE8;
+  --stone7:      #F8F7F3;
+  --white:       #ffffff;
+  --amber:       #BA7517;
+  --amber-light: #FAEEDA;
+  --blue:        #378ADD;
+  --blue-light:  #E6F1FB;
+  --coral:       #D85A30;
+  --pink:        #D4537E;
+  --green:       #639922;
+  --border:      rgba(44,44,42,0.12);
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.07);
+  --shadow-md:   0 4px 16px rgba(0,0,0,0.09);
+  --shadow-lg:   0 8px 32px rgba(0,0,0,0.12);
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+}
+html, body { height: 100%; font-family: 'Syne', sans-serif; background: var(--stone7); color: var(--stone); }
+
+/* ── Landing Page ─────────────────────────────────────── */
+#landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--white);
+}
+
+/* Nav */
+#nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 2rem;
+  border-bottom: 0.5px solid var(--border);
+  background: var(--white);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--stone);
+  letter-spacing: -0.5px;
+  text-decoration: none;
+}
+.nav-logo .logo-gem { font-size: 22px; }
+.nav-logo .logo-badge {
+  background: var(--teal);
+  color: var(--white);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.nav-links { display: flex; align-items: center; gap: 8px; }
+.nav-btn {
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0.5px solid var(--border);
+  background: var(--stone6);
+  color: var(--stone);
+}
+.nav-btn:hover { background: var(--stone5); }
+.nav-btn.primary { background: var(--teal); color: var(--white); border-color: var(--teal); }
+.nav-btn.primary:hover { background: var(--teal-dark); }
+
+/* Hero */
+#hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 5rem 2rem 4rem;
+  position: relative;
+  overflow: hidden;
+}
+#hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(29,158,117,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 20px;
+  margin-bottom: 1.5rem;
+  border: 0.5px solid rgba(29,158,117,0.3);
+}
+.hero-title {
+  font-family: 'Lora', serif;
+  font-size: clamp(2.4rem, 6vw, 4.2rem);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -1px;
+  color: var(--stone);
+  max-width: 780px;
+  margin-bottom: 1.5rem;
+}
+.hero-title em { font-style: italic; color: var(--teal); }
+.hero-subtitle {
+  font-size: 1.1rem;
+  color: var(--stone3);
+  max-width: 560px;
+  line-height: 1.7;
+  margin-bottom: 2.5rem;
+  font-weight: 400;
+}
+.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 3.5rem; }
+.hero-btn {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 14px 28px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.hero-btn.primary { background: var(--teal); color: var(--white); box-shadow: 0 4px 14px rgba(29,158,117,0.3); }
+.hero-btn.primary:hover { background: var(--teal-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(29,158,117,0.35); }
+.hero-btn.secondary { background: var(--white); color: var(--stone); border: 0.5px solid var(--stone5); }
+.hero-btn.secondary:hover { background: var(--stone6); }
+
+/* Stats strip */
+.hero-stats {
+  display: flex;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.stat { text-align: center; }
+.stat-num { font-family: 'IBM Plex Mono', monospace; font-size: 1.5rem; font-weight: 500; color: var(--teal); display: block; }
+.stat-lbl { font-size: 11px; color: var(--stone3); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+
+/* Features section */
+#features {
+  padding: 5rem 2rem;
+  background: var(--stone7);
+  border-top: 0.5px solid var(--border);
+}
+.features-inner { max-width: 1100px; margin: 0 auto; }
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 0.75rem;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.section-title {
+  font-family: 'Lora', serif;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 500;
+  color: var(--stone);
+  letter-spacing: -0.5px;
+  margin-bottom: 3rem;
+  max-width: 560px;
+}
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+.feature-card {
+  background: var(--white);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.feature-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.feature-icon {
+  width: 44px; height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  margin-bottom: 1rem;
+  background: var(--teal-light);
+}
+.feature-title { font-size: 15px; font-weight: 700; margin-bottom: 0.5rem; color: var(--stone); }
+.feature-desc { font-size: 13px; color: var(--stone3); line-height: 1.65; }
+
+/* Location cards */
+#locations {
+  padding: 5rem 2rem;
+  background: var(--white);
+  border-top: 0.5px solid var(--border);
+}
+.locations-inner { max-width: 1100px; margin: 0 auto; }
+.location-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
+.location-card {
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--stone7);
+}
+.location-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: var(--teal); }
+.location-card.active { border-color: var(--teal); border-width: 1.5px; box-shadow: 0 0 0 3px rgba(29,158,117,0.1); }
+.lcard-header {
+  padding: 1.25rem 1.5rem 1rem;
+  background: var(--stone6);
+  border-bottom: 0.5px solid var(--border);
+}
+.lcard-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--teal-dark); background: var(--teal-light); padding: 2px 8px; border-radius: 3px;
+  display: inline-block; margin-bottom: 6px; font-family: 'IBM Plex Mono', monospace;
+}
+.lcard-name { font-family: 'Lora', serif; font-size: 1.3rem; font-weight: 500; color: var(--stone); margin-bottom: 4px; }
+.lcard-sub { font-size: 12px; color: var(--stone3); font-family: 'IBM Plex Mono', monospace; }
+.lcard-body { padding: 1rem 1.5rem; }
+.lcard-minerals { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 0.75rem; }
+.mineral-tag {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 3px;
+  background: var(--purple-light); color: var(--purple);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.lcard-meta { font-size: 12px; color: var(--stone3); display: flex; align-items: center; gap: 6px; }
+.lcard-open-btn {
+  width: 100%; margin-top: 0.75rem;
+  font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+  padding: 9px; border-radius: var(--radius-sm); border: 0.5px solid var(--teal);
+  background: var(--teal-light); color: var(--teal-dark); cursor: pointer; transition: all 0.15s;
+}
+.lcard-open-btn:hover { background: var(--teal); color: var(--white); }
+
+.search-placeholder {
+  border: 0.5px dashed var(--stone5);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  text-align: center;
+  background: var(--stone7);
+}
+.search-placeholder-title { font-size: 15px; font-weight: 700; color: var(--stone2); margin-bottom: 0.5rem; }
+.search-placeholder-sub { font-size: 13px; color: var(--stone3); margin-bottom: 1.25rem; line-height: 1.6; }
+.search-row-placeholder {
+  display: flex; gap: 8px; max-width: 480px; margin: 0 auto;
+}
+.search-input-placeholder {
+  flex: 1; height: 42px; padding: 0 14px;
+  border: 0.5px solid var(--stone5); border-radius: var(--radius-sm);
+  font-family: 'Syne', sans-serif; font-size: 13px; background: var(--white);
+  color: var(--stone); outline: none;
+}
+.search-input-placeholder:focus { border-color: var(--teal); }
+.search-input-placeholder::placeholder { color: var(--stone4); }
+.search-btn-placeholder {
+  height: 42px; padding: 0 20px;
+  background: var(--stone5); color: var(--stone3);
+  border: none; border-radius: var(--radius-sm);
+  font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+  cursor: not-allowed; white-space: nowrap;
+}
+.coming-soon-badge {
+  display: inline-block; margin-top: 0.75rem;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+  background: var(--amber-light); color: var(--amber); padding: 3px 10px; border-radius: 3px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Footer */
+#footer {
+  padding: 2rem;
+  border-top: 0.5px solid var(--border);
+  background: var(--stone6);
+  text-align: center;
+}
+.footer-logo { font-size: 14px; font-weight: 700; color: var(--stone2); margin-bottom: 0.5rem; }
+.footer-sub { font-size: 11px; color: var(--stone4); font-family: 'IBM Plex Mono', monospace; }
+
+/* ── App View ─────────────────────────────────────────── */
+#app { display: none; flex-direction: column; height: 100vh; background: var(--white); }
+
+#app-toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: .65rem 1rem; background: var(--white);
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0; z-index: 100;
+}
+.app-logo { font-size: 15px; font-weight: 800; letter-spacing: -0.3px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.app-logo .pill { background: var(--teal); color: var(--white); font-size: 9px; font-weight: 700; letter-spacing: 1px; padding: 2px 6px; border-radius: 3px; }
+.app-logo .region { font-size: 11px; font-weight: 400; color: var(--stone3); font-family: 'IBM Plex Mono', monospace; margin-left: 2px; }
+
+.bm-group { display: flex; gap: 2px; background: var(--stone6); border: 0.5px solid var(--stone5); border-radius: 8px; padding: 2px; }
+.bm-btn { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600; padding: 4px 11px; border-radius: 6px; border: none; cursor: pointer; background: none; color: var(--stone3); transition: all .15s; white-space: nowrap; }
+.bm-btn:hover { color: var(--stone); }
+.bm-btn.on { background: var(--white); color: var(--stone); box-shadow: var(--shadow-sm); }
+
+.tbtn { height: 34px; padding: 0 12px; border-radius: 8px; font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 5px; border: 0.5px solid var(--stone5); background: var(--stone6); color: var(--stone); transition: opacity .15s; white-space: nowrap; }
+.tbtn:hover { opacity: .75; }
+.tbtn-v { background: var(--purple-light); color: var(--purple); border-color: rgba(83,74,183,0.35); }
+.tbtn-home { background: var(--teal-light); color: var(--teal-dark); border-color: rgba(29,158,117,0.3); }
+
+#layerbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: .38rem 1rem; background: var(--stone7); border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+.lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--stone3); white-space: nowrap; }
+.ltog { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; cursor: pointer; border: 0.5px solid var(--stone5); background: var(--white); color: var(--stone3); transition: all .15s; user-select: none; }
+.ltog.on { color: var(--white); }
+.ltog.dep.on { background: var(--teal); border-color: var(--teal); }
+.ltog.zone.on { background: var(--purple); border-color: var(--purple); }
+.ltog .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.ltog.dep .dot { background: var(--teal); } .ltog.dep.on .dot { background: rgba(255,255,255,.7); }
+.ltog.zone .dot { background: var(--purple); } .ltog.zone.on .dot { background: rgba(255,255,255,.7); }
+
+#chiprow { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; padding: .38rem 1rem; background: var(--white); border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+.chip { font-size: 11px; font-family: 'Syne', sans-serif; font-weight: 600; padding: 3px 10px; border-radius: 20px; cursor: pointer; border: 0.5px solid var(--stone5); background: var(--stone6); color: var(--stone3); transition: all .15s; }
+.chip.on { background: var(--teal); color: var(--white); border-color: var(--teal); }
+
+#mapbody { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+#map-wrap { flex: 1; position: relative; min-width: 0; }
+#map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+
+#sidebar { width: 272px; flex-shrink: 0; display: flex; flex-direction: column; border-left: 0.5px solid var(--border); background: var(--white); overflow: hidden; }
+#sbhead { padding: .55rem 1rem; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+#sbhead span { font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: var(--stone3); font-family: 'IBM Plex Mono', monospace; }
+#sbtabs { display: flex; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+.sbtab { flex: 1; font-size: 11px; font-weight: 600; padding: 7px; text-align: center; cursor: pointer; border: none; background: none; color: var(--stone3); border-bottom: 2px solid transparent; transition: all .15s; font-family: 'Syne', sans-serif; }
+.sbtab.on { color: var(--teal); border-bottom-color: var(--teal); }
+#sblist { flex: 1; overflow-y: auto; padding: .5rem; }
+
+.sitem { padding: .5rem .65rem .5rem .95rem; border-radius: 8px; cursor: pointer; border: 0.5px solid transparent; margin-bottom: 4px; position: relative; overflow: hidden; transition: background .12s; }
+.sitem:hover { background: var(--stone7); }
+.sitem.active { background: var(--stone7); border-color: var(--teal); }
+.sname { font-size: 12px; font-weight: 600; color: var(--stone); line-height: 1.3; margin-bottom: 2px; }
+.scommod { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--teal); margin-bottom: 1px; }
+.smeta { font-size: 11px; color: var(--stone3); line-height: 1.4; }
+
+.zitem { padding: .5rem .65rem .5rem .95rem; border-radius: 8px; cursor: pointer; border: 0.5px solid transparent; margin-bottom: 4px; position: relative; overflow: hidden; transition: background .12s; }
+.zitem:hover { background: var(--stone7); }
+.zitem.active { background: var(--stone7); border-color: var(--purple); }
+.zname { font-size: 12px; font-weight: 600; color: var(--stone); line-height: 1.3; margin-bottom: 2px; }
+.zcommod { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--purple); margin-bottom: 2px; }
+.zmeta { font-size: 11px; color: var(--stone3); line-height: 1.4; }
+.confbar { height: 4px; border-radius: 2px; margin-top: 4px; background: var(--stone5); overflow: hidden; }
+.conffill { height: 100%; border-radius: 2px; background: var(--purple); }
+
+#statusbar { padding: .32rem 1rem; background: var(--stone7); border-top: 0.5px solid var(--border); font-size: 10px; font-family: 'IBM Plex Mono', monospace; color: var(--stone3); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+
+/* Popup styles */
+.leaflet-popup-content-wrapper { border-radius: 10px !important; border: 0.5px solid var(--stone5) !important; font-family: 'Syne', sans-serif !important; min-width: 224px; box-shadow: var(--shadow-lg) !important; }
+.leaflet-popup-content { margin: 12px 14px !important; font-size: 13px; }
+.pop-name { font-weight: 700; font-size: 13px; margin-bottom: 3px; font-family: 'Lora', serif; }
+.pop-commod { font-family: 'IBM Plex Mono', monospace; font-size: 10px; margin-bottom: 5px; }
+.pop-fm { font-size: 11px; color: var(--stone3); margin-bottom: 4px; }
+.pop-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--stone2); margin-bottom: 2px; }
+.pop-note { font-size: 11px; color: var(--stone2); line-height: 1.55; border-top: 0.5px solid var(--stone5); padding-top: 5px; margin-top: 4px; }
+.pop-acts { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+.pop-btn { font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 5px; border: 0.5px solid var(--stone5); background: var(--stone6); cursor: pointer; color: var(--stone); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; font-family: 'Syne', sans-serif; transition: all 0.12s; }
+.pop-btn:hover { background: var(--stone5); }
+.pop-btn.sat { background: var(--teal); color: var(--white); border-color: var(--teal); }
+.pop-btn.sat:hover { background: var(--teal-dark); }
+.pop-btn.ask { background: var(--purple-light); color: var(--purple); border-color: rgba(83,74,183,0.3); }
+.pop-btn.ask:hover { background: var(--purple); color: var(--white); }
+.badge { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px; font-family: 'Syne', sans-serif; }
+.b-free { background: var(--teal-light); color: var(--teal-dark); }
+.b-fee  { background: var(--amber-light); color: var(--amber); }
+.b-chk  { background: var(--blue-light); color: #042C53; }
+.min-pill { display: inline-block; background: var(--purple-light); color: var(--purple); font-size: 10px; padding: 2px 6px; border-radius: 3px; margin: 2px 2px 2px 0; font-family: 'IBM Plex Mono', monospace; }
+
+/* Responsive */
+@media (max-width: 700px) {
+  #sidebar { display: none; }
+  #app-toolbar { gap: 5px; }
+  .app-logo .region { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LANDING PAGE ══════════════ -->
+<div id="landing">
+
+  <nav id="nav">
+    <a class="nav-logo" href="#">
+      <span class="logo-gem">⛏</span>
+      GeoFind
+      <span class="logo-badge">Beta</span>
+    </a>
+    <div class="nav-links">
+      <button class="nav-btn" onclick="scrollTo({top:document.getElementById('features').offsetTop,behavior:'smooth'})">How it works</button>
+      <button class="nav-btn" onclick="scrollTo({top:document.getElementById('locations').offsetTop,behavior:'smooth'})">Explore locations</button>
+      <button class="nav-btn primary" onclick="openApp('plush')">Launch map ↗</button>
+    </div>
+  </nav>
+
+  <section id="hero">
+    <div class="hero-eyebrow">⛏ Powered by USGS · SGMC · AI inference</div>
+    <h1 class="hero-title">
+      Find minerals where<br/><em>the geology tells you to look</em>
+    </h1>
+    <p class="hero-subtitle">
+      GeoFind combines official USGS geological data, community rockhound reports, and AI inference to show you confirmed deposit sites — and predict new ones based on the underlying geology.
+    </p>
+    <div class="hero-actions">
+      <button class="hero-btn primary" onclick="openApp('plush')">⛏ Explore Plush, Oregon</button>
+      <button class="hero-btn secondary" onclick="openApp('govcamp')">🏔 Government Camp, OR</button>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-num">300K+</span><span class="stat-lbl">USGS deposits</span></div>
+      <div class="stat"><span class="stat-num">2</span><span class="stat-lbl">Preloaded regions</span></div>
+      <div class="stat"><span class="stat-num">5</span><span class="stat-lbl">Inferred zones</span></div>
+      <div class="stat"><span class="stat-num">Free</span><span class="stat-lbl">No account needed</span></div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="features-inner">
+      <div class="section-label">How GeoFind works</div>
+      <h2 class="section-title">Not just a map — a geological inference engine</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📍</div>
+          <div class="feature-title">Confirmed deposit pins</div>
+          <div class="feature-desc">Every solid pin is a verified USGS MRDS deposit with GPS coordinates, commodity data, development status, and direct links to the full USGS record.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:var(--purple-light)">🔷</div>
+          <div class="feature-title">Geological inference zones</div>
+          <div class="feature-desc">If agates are found where Columbia River Basalt outcrops, every other outcrop of that same formation in the region is shaded as a probable collecting zone — even undocumented spots.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:var(--amber-light)">🌐</div>
+          <div class="feature-title">Community data scraping</div>
+          <div class="feature-desc">AI searches rockhounding forums, gem club trip reports, and hobbyist blogs to extract real-world field finds that no official database captures.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#FAEEDA">🛰</div>
+          <div class="feature-title">Satellite view on demand</div>
+          <div class="feature-desc">Every deposit pin links directly to Google Maps satellite view so you can see the exact terrain, road access, and surrounding geology before you drive out.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#EAF3DE">⚡</div>
+          <div class="feature-title">Ask Claude about any site</div>
+          <div class="feature-desc">Click Ask Claude on any deposit or zone for detailed collecting tips, formation geology, what tools to bring, and what specimens to look for.</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:var(--blue-light)">🔍</div>
+          <div class="feature-title">Live search — coming soon</div>
+          <div class="feature-desc">Type any location worldwide and GeoFind will dynamically query USGS, scrape community sites, and run geological inference in real time for your area.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="locations">
+    <div class="locations-inner">
+      <div class="section-label">Preloaded regions</div>
+      <h2 class="section-title">Start exploring now</h2>
+      <div class="location-cards">
+        <div class="location-card" id="card-plush" onclick="openApp('plush')">
+          <div class="lcard-header">
+            <div class="lcard-tag">Southeast Oregon · BLM</div>
+            <div class="lcard-name">Plush, Oregon</div>
+            <div class="lcard-sub">42.402°N 119.908°W · 100 mi radius</div>
+          </div>
+          <div class="lcard-body">
+            <div class="lcard-minerals">
+              <span class="mineral-tag">Oregon Sunstone</span>
+              <span class="mineral-tag">Obsidian</span>
+              <span class="mineral-tag">Agate</span>
+              <span class="mineral-tag">Fire Opal</span>
+              <span class="mineral-tag">Thunderegg</span>
+              <span class="mineral-tag">Gold</span>
+            </div>
+            <div class="lcard-meta">⛏ 18 confirmed sites · 5 inferred zones</div>
+            <button class="lcard-open-btn">Open map →</button>
+          </div>
+        </div>
+        <div class="location-card" id="card-govcamp" onclick="openApp('govcamp')">
+          <div class="lcard-header">
+            <div class="lcard-tag">Mt Hood · Cascades · MHNF</div>
+            <div class="lcard-name">Government Camp, Oregon</div>
+            <div class="lcard-sub">45.298°N 121.752°W · 30 mi radius</div>
+          </div>
+          <div class="lcard-body">
+            <div class="lcard-minerals">
+              <span class="mineral-tag">Agate</span>
+              <span class="mineral-tag">Jasper</span>
+              <span class="mineral-tag">Quartz</span>
+              <span class="mineral-tag">Zeolite</span>
+              <span class="mineral-tag">Olivine</span>
+            </div>
+            <div class="lcard-meta">⛏ 11 confirmed sites · 3 inferred zones</div>
+            <button class="lcard-open-btn">Open map →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search placeholder -->
+      <div class="search-placeholder">
+        <div class="search-placeholder-title">Search any location — coming soon</div>
+        <div class="search-placeholder-sub">Live AI-powered search for any location worldwide is in development. Enter your location below to be notified when it launches.</div>
+        <div class="search-row-placeholder">
+          <input class="search-input-placeholder" type="text" placeholder="e.g. Boise, Idaho or 43.61, -116.20" disabled/>
+          <button class="search-btn-placeholder" disabled>Search</button>
+        </div>
+        <span class="coming-soon-badge">Live search · Coming soon</span>
+      </div>
+    </div>
+  </section>
+
+  <footer id="footer">
+    <div class="footer-logo">⛏ GeoFind</div>
+    <div class="footer-sub">Powered by USGS MRDS · SGMC · AI geological inference · OpenStreetMap · Beta version</div>
+  </footer>
+
+</div>
+
+<!-- ══════════════ APP VIEW ══════════════ -->
+<div id="app">
+  <div id="app-toolbar">
+    <div class="app-logo" onclick="goHome()">
+      GeoFind <span class="pill">ROCKHOUND</span>
+      <span class="region" id="regionLabel">Plush, OR · 100 mi</span>
+    </div>
+    <div class="bm-group">
+      <button class="bm-btn on" id="bm-osm"    onclick="setBasemap('osm')">Street</button>
+      <button class="bm-btn"    id="bm-topo"   onclick="setBasemap('topo')">Topo</button>
+      <button class="bm-btn"    id="bm-outdoor" onclick="setBasemap('outdoor')">Outdoor</button>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:6px;">
+      <button class="tbtn tbtn-v" id="fieldTipsBtn">✦ Field tips</button>
+      <button class="tbtn tbtn-home" onclick="goHome()">← Locations</button>
+    </div>
+  </div>
+
+  <div id="layerbar">
+    <span class="lbl">Layers:</span>
+    <div class="ltog dep on" id="tog-dep" onclick="toggleLayer('dep')"><span class="dot"></span> Confirmed deposits</div>
+    <div class="ltog zone on" id="tog-zone" onclick="toggleLayer('zone')"><span class="dot"></span> Inferred zones</div>
+    <span style="margin-left:auto;font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--stone3)" id="bmlbl">OpenStreetMap · satellite via pin links</span>
+  </div>
+
+  <div id="chiprow">
+    <span class="lbl">Filter:</span>
+    <!-- chips injected by JS -->
+  </div>
+
+  <div id="mapbody">
+    <div id="map-wrap"><div id="map"></div></div>
+    <div id="sidebar">
+      <div id="sbhead"><span id="sbcount">Loading…</span></div>
+      <div id="sbtabs">
+        <button class="sbtab on" id="sbt-dep"  onclick="switchTab('dep')">Sites</button>
+        <button class="sbtab"    id="sbt-zone" onclick="switchTab('zone')">Zones</button>
+      </div>
+      <div id="sblist"></div>
+    </div>
+  </div>
+
+  <div id="statusbar">
+    <div class="sdot"></div>
+    <span id="stxt">Loading…</span>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+
+// ══════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════
+
+const LOCATIONS = {
+
+  plush: {
+    name: 'Plush, Oregon',
+    region: 'Plush, OR · 100 mi',
+    center: [42.402, -119.908],
+    zoom: 8,
+    radius: 160934,
+    fieldTip: 'Tell me the top field tips for rockhounding in the Plush Oregon area — best seasons, road conditions, BLM rules, tools to bring, and the most productive sites for sunstone.',
+    chips: ['sunstone','obsidian','agate','jasper','opal','gold','petrified'],
+    deps: [
+      { name:'Oregon Sunstone Public Collection Area', lat:42.682, lon:-119.938, c1:'Sunstone', c2:'Feldspar', c3:'', acc:'free', co:'Lake', fm:'Miocene Copper-Bearing Basalt', note:'Free BLM public dig. 23 mi north of Plush in Rabbit Basin. Screen volcanic soil with ¼" mesh. Best May–Oct. Very remote — bring water, fuel, and a sun hat.' },
+      { name:'Spectrum Sunstone Mine', lat:42.695, lon:-119.951, c1:'Sunstone', c2:'Feldspar', c3:'', acc:'fee', co:'Lake', fm:'Miocene Copper-Bearing Basalt', note:'Private fee-dig. Higher grade material and larger crystals than the free area. Guided digs available seasonally.' },
+      { name:'Dust Devil Mining Co.', lat:42.701, lon:-119.928, c1:'Sunstone', c2:'', c3:'', acc:'fee', co:'Lake', fm:'Miocene Copper-Bearing Basalt', note:'One of the original Plush sunstone operations. Private claim, fee-dig, open seasonally.' },
+      { name:'Double Eagle Mining Co.', lat:42.688, lon:-119.962, c1:'Sunstone', c2:'', c3:'', acc:'fee', co:'Lake', fm:'Miocene Copper-Bearing Basalt', note:'200+ acres of sunstone-bearing feldspar basalt. Copper inclusions produce red, orange, and green schiller.' },
+      { name:'Glass Butte Obsidian Area (BLM)', lat:43.558, lon:-120.063, c1:'Obsidian', c2:'', c3:'', acc:'free', co:'Lake', fm:'Late Miocene Rhyolite', note:'World-class obsidian. Rainbow, mahogany, gold sheen, silver sheen, midnight lace varieties. East side most productive. Wear sturdy boots — shards everywhere.' },
+      { name:'Little Glass Butte', lat:43.542, lon:-120.039, c1:'Obsidian', c2:'Agate', c3:'', acc:'free', co:'Lake', fm:'Late Miocene Rhyolite', note:'Companion site to Glass Butte. Less visited and still productive for obsidian and occasional agate.' },
+      { name:'Hart Mountain Wildlife Refuge', lat:42.558, lon:-119.659, c1:'Agate', c2:'Jasper', c3:'Opal', acc:'free', co:'Lake', fm:'Basin & Range Fault Block Volcanics', note:'Surface collection only. DeGarmo Canyon and Arsenic Canyon most productive. Western Warner Mountains also good.' },
+      { name:'DeGarmo Canyon', lat:42.498, lon:-119.641, c1:'Agate', c2:'Fire Opal', c3:'Jasper', acc:'free', co:'Lake', fm:'Miocene Lacustrine Tuffs', note:'Chalcedony and fire opal in tuffaceous canyon walls. Surface hunt wash bottoms after rain.' },
+      { name:'Juniper Ridge Fire Opal Area', lat:42.651, lon:-120.402, c1:'Fire Opal', c2:'', c3:'', acc:'private', co:'Lake', fm:'Miocene Rhyolite Flows', note:'All claims are private — no public access. Gem-quality fire opal in rhyolite. ~60 mi west of Lakeview.' },
+      { name:'Warner Valley Agate Beds', lat:42.351, lon:-119.901, c1:'Agate', c2:'Chalcedony', c3:'Petrified Wood', acc:'free', co:'Lake', fm:'Miocene Lake Bed Sediments', note:'BLM land. Ancient lake bed sediments and basalt flows yield agate and chalcedony. Good surface hunting after erosion.' },
+      { name:'Lakeview Gold District', lat:42.190, lon:-120.345, c1:'Gold', c2:'Silver', c3:'', acc:'free', co:'Lake', fm:'Miocene Volcanic & Intrusive', note:'Historic placer and lode gold on BLM land around Lakeview. Drywash and metal detecting on old workings.' },
+      { name:'Paisley Petrified Wood Area', lat:42.692, lon:-120.538, c1:'Petrified Wood', c2:'Agate', c3:'', acc:'free', co:'Lake', fm:'Miocene Lacustrine Sediments', note:'Ancient lake bed sediments near Paisley produce silicified wood and plant material. BLM surface collection.' },
+      { name:'Silver Lake Thunderegg Area', lat:43.128, lon:-121.052, c1:'Thunderegg', c2:'Agate', c3:'Opal', acc:'free', co:'Lake', fm:'Oligocene–Miocene Rhyolite Ash Flows', note:'Thundereggs with blue agate and opal interiors. Fremont National Forest area.' },
+      { name:'Crane Creek Thunderegg Beds', lat:43.398, lon:-120.791, c1:'Thunderegg', c2:'Blue Agate', c3:'Quartz', acc:'free', co:'Harney', fm:'Oligocene–Miocene Rhyolite Ash Flows', note:'Blue agate-filled thundereggs deep in Fremont NF. Road crosses creek multiple times — can wash out. High clearance required.' },
+      { name:'Hampton Butte Petrified Wood', lat:43.771, lon:-120.432, c1:'Petrified Wood', c2:'Jasper', c3:'Agate', acc:'free', co:'Harney', fm:'Miocene Lacustrine & Volcanic', note:'Famous for green and red petrified wood. Halfway between Bend and Burns off Hwy 20. Some digging allowed.' },
+      { name:'Ponderosa Mine (Sunstone)', lat:43.401, lon:-119.228, c1:'Sunstone', c2:'Feldspar', c3:'', acc:'fee', co:'Harney', fm:'Miocene Copper-Bearing Basalt', note:'Second major sunstone deposit ~100 mi north in Harney County. Same copper-bearing basalt geology as Plush mines.' },
+      { name:'Mud Ridge Obsidian (BLM)', lat:43.489, lon:-118.952, c1:'Obsidian', c2:'', c3:'', acc:'free', co:'Harney', fm:'Miocene Rhyolite', note:'BLM obsidian site near Hines/Burns. Less known than Glass Butte, less picked over.' },
+      { name:'Owyhee River Picture Jasper', lat:42.821, lon:-117.812, c1:'Picture Jasper', c2:'Agate', c3:'Thunderegg', acc:'free', co:'Malheur', fm:'Columbia River Basalt / Rhyolite', note:'Owyhee picture jasper in canyon country. Juniper Gulch and Succor Creek Canyon most productive. Very remote.' },
+    ],
+    zones: [
+      { name:'Miocene Copper-Bearing Basalt Belt', rock:'Plagioclase porphyritic basalt with copper inclusions', mins:['Oregon Sunstone','Labradorite feldspar','Augite crystals'], conf:95, why:'The Rabbit Basin copper-rich basalt flows (15–10 Ma) produce sunstone wherever the formation outcrops. Copper concentrates in feldspar phenocrysts as basalt cools slowly.', bounds:[[42.58,-120.05],[42.62,-119.85],[42.78,-119.82],[42.80,-119.95],[42.74,-120.10],[42.62,-120.12]], acc:'Mixed BLM / private' },
+      { name:'Late Miocene Rhyolite (Glass Butte Complex)', rock:'Perlitic rhyolite, obsidian flows, pumicite', mins:['Obsidian (rainbow, mahogany, gold sheen)','Perlite','Occasional agate nodules'], conf:92, why:'Glass Butte silica-rich rhyolite flows (~4.9 Ma) produced massive obsidian. Any outcrop of this complex shares the same silicic magma source.', bounds:[[43.48,-120.18],[43.52,-120.00],[43.62,-119.98],[43.65,-120.08],[43.60,-120.22],[43.50,-120.25]], acc:'BLM — free public collection' },
+      { name:'Oligocene–Miocene Rhyolite Ash Flow Tuff Belt', rock:'Welded and non-welded rhyolite ash flows, tuffaceous sediments', mins:['Thundereggs','Agate (blue, plume, moss)','Opal','Chalcedony nodules'], conf:85, why:'Thundereggs form in vesicles within rhyolite ash flow tuffs. The entire Oligocene–Miocene silicic volcanic belt through Fremont NF shares this host rock.', bounds:[[43.00,-121.20],[43.10,-120.60],[43.45,-120.70],[43.55,-120.95],[43.40,-121.30],[43.10,-121.35]], acc:'BLM / Fremont NF — free' },
+      { name:'Miocene Lacustrine Tuff & Lake Bed Sediments', rock:'Tuffaceous siltstone, diatomite, palagonite tuff', mins:['Agate','Chalcedony','Common & fire opal','Petrified wood','Zeolites'], conf:78, why:'Ancient Miocene lake beds of the Warner and Chewaucan basins deposited silica-rich sediments that recrystallized as agate and opal throughout the Warner Valley basin fill.', bounds:[[42.20,-120.30],[42.25,-119.80],[42.55,-119.75],[42.72,-120.00],[42.67,-120.50],[42.35,-120.55]], acc:'BLM — free surface collection' },
+      { name:'Basin & Range Fault Block Volcanics', rock:'Basalt, andesite, rhyolite breccia, hydrothermal veins', mins:['Fire opal','Common opal','Agate','Jasper','Chalcedony'], conf:70, why:'Hart Mountain and Abert Rim fault block uplifts expose hydrothermal systems. Silica-rich fluids mineralize basalt and andesite cavities producing opal, agate, and jasper.', bounds:[[42.35,-119.82],[42.38,-119.52],[42.65,-119.48],[42.74,-119.62],[42.70,-119.88],[42.45,-119.92]], acc:'BLM / Hart Mtn NWR — free, surface only' },
+    ]
+  },
+
+  govcamp: {
+    name: 'Government Camp, Oregon',
+    region: 'Government Camp, OR · 30 mi',
+    center: [45.298, -121.752],
+    zoom: 10,
+    radius: 48280,
+    fieldTip: 'What are the best rockhounding spots within 30 miles of Government Camp Oregon? Cover the river gravels, geology, access rules, best seasons, and what minerals to expect.',
+    chips: ['agate','jasper','quartz','zeolite','gold','petrified','olivine'],
+    deps: [
+      { name:'Sandy River Upper Gravels', lat:45.398, lon:-121.980, c1:'Agate', c2:'Jasper', c3:'Quartz', acc:'free', co:'Clackamas', fm:'Cascade Lava Gravels', note:'River gravels carry volcanic agate and jasper tumbled from Cascade lava flows. Best late summer at low water. Personal collecting allowed in Mt Hood NF.' },
+      { name:'Zigzag River Gravel Bars', lat:45.320, lon:-121.868, c1:'Agate', c2:'Jasper', c3:'Basalt', acc:'free', co:'Clackamas', fm:'Cascade Lava Gravels', note:'Tributary directly below Government Camp. Rounded agates and jasper in gravel bars along Hwy 26. Snow closes upper reaches Oct–May.' },
+      { name:'Salmon River Gravels', lat:45.278, lon:-121.900, c1:'Agate', c2:'Jasper', c3:'Petrified Wood', acc:'free', co:'Clackamas', fm:'Cascade Lava Gravels', note:'Flows north from Mt Hood. Volcanic agate and jasper in gravel bars. Check Wild & Scenic regs on lower reaches.' },
+      { name:'Still Creek Gravel Bars', lat:45.281, lon:-121.778, c1:'Agate', c2:'Jasper', c3:'Quartz', acc:'free', co:'Clackamas', fm:'Cascade Lava Gravels', note:'Flows right past Government Camp. Quick Hwy 26 access. Small agate and jasper fragments from reworked Cascade volcanics. Best at low water.' },
+      { name:'Zigzag Mountain — Quartz Veins', lat:45.358, lon:-121.830, c1:'Quartz', c2:'Pyrite', c3:'', acc:'free', co:'Clackamas', fm:'Miocene Cascade Plutonic Complex', note:'USGS records sulfide-bearing quartz veins in shear zones. Rugged terrain — serious hiking required. Near Mt Hood Wilderness boundary.' },
+      { name:'Lost Creek — Alteration Zone', lat:45.388, lon:-121.711, c1:'Quartz', c2:'Chlorite', c3:'Epidote', acc:'free', co:'Hood River', fm:'Miocene Cascade Plutonic Complex', note:'USGS fault zone with sulfide-bearing quartz veins and propylitic alteration. Chlorite and epidote visible in altered volcanic rock.' },
+      { name:'Ramona Falls — Zeolites in Basalt', lat:45.398, lon:-121.788, c1:'Zeolite', c2:'Calcite', c3:'Agate', acc:'free', co:'Clackamas', fm:'Cascade Basalt Flows', note:'Vesicular basalt hosts zeolites (stilbite, heulandite) and calcite in cavities. Classic PNW find. Collect from loose talus only.' },
+      { name:'Hood River Valley — Basalt Vesicles', lat:45.521, lon:-121.701, c1:'Agate', c2:'Chalcedony', c3:'Zeolite', acc:'free', co:'Hood River', fm:'Columbia River Basalt Group', note:'Columbia River Basalt flows with vesicles filled by agate, chalcedony, and zeolites. Hood River gravel bars carry reworked material.' },
+      { name:'Laurel Hill — Quartz Diorite Outcrop', lat:45.316, lon:-121.802, c1:'Quartz', c2:'Feldspar', c3:'Hornblende', acc:'free', co:'Clackamas', fm:'Miocene Quartz Diorite Intrusion', note:'Coarse-grained plutonic rock in roadcuts along Hwy 26 west of Government Camp. Quartz, feldspar, hornblende visible. Great geology stop.' },
+      { name:'White River Canyon Gravels', lat:45.268, lon:-121.638, c1:'Agate', c2:'Jasper', c3:'Volcanic Rock', acc:'free', co:'Wasco', fm:'Cascade Lava Gravels', note:'East flank of Mt Hood. Less visited. Volcanic gravel bars in lower canyon carry agate and jasper. BLM land in lower canyon.' },
+      { name:'Mt Hood — Volcanic Phenocrysts', lat:45.373, lon:-121.695, c1:'Olivine', c2:'Augite', c3:'Plagioclase', acc:'free', co:'Hood River', fm:'Holocene Andesite & Dacite', note:'Fresh lava talus contains olivine, augite, and plagioclase phenocrysts. Surface collect on MHNF scree slopes only — no collecting inside Wilderness boundary.' },
+    ],
+    zones: [
+      { name:'Mt Hood Cascade Arc Volcanic Corridor', rock:'Andesite, dacite, basalt, tephra, glacial till', mins:['Volcanic agate','Jasper','Quartz','Zeolites in basalt vesicles','Olivine & augite phenocrysts'], conf:75, why:'Mt Hood is an active Cascade stratovolcano. All river drainages (Sandy, Zigzag, Salmon, Still Creek, White River) carry Cascade-derived agate and jasper. Any gravel bar within this zone has collecting potential at low water.', bounds:[[45.18,-122.05],[45.20,-121.55],[45.52,-121.52],[45.55,-121.90],[45.40,-122.10]], acc:'Mt Hood National Forest — free; Wilderness boundary prohibits collecting' },
+      { name:'Miocene Cascade Plutonic Complex', rock:'Quartz diorite, propylitically altered andesite, hydrothermal quartz veins', mins:['Hydrothermal quartz','Pyrite','Chlorite','Epidote','Calcite veins'], conf:65, why:'A Miocene quartz diorite intrusion underlies Zigzag Mountain and Laurel Hill. Fault zones host sulfide-bearing quartz veins with propylitic alteration in surrounding volcanic rocks.', bounds:[[45.28,-121.95],[45.30,-121.72],[45.42,-121.70],[45.45,-121.88],[45.35,-121.98]], acc:'Mt Hood NF — free; rugged terrain, hiking required' },
+      { name:'Columbia River Basalt — Hood River Valley', rock:'Tholeiitic basalt flows with amygdaloidal vesicles', mins:['Agate nodules','Chalcedony','Stilbite (zeolite)','Heulandite (zeolite)','Laumontite','Calcite'], conf:80, why:'Columbia River Basalt flows north of Mt Hood contain vesicles filled by low-temperature hydrothermal minerals — zeolites, calcite, agate, and chalcedony. Every exposed basalt face in this zone is worth inspecting.', bounds:[[45.48,-121.90],[45.50,-121.45],[45.72,-121.48],[45.72,-121.85],[45.55,-122.00]], acc:'Mix of public and private — verify access per parcel' },
+    ]
+  }
+};
+
+// ══════════════════════════════════════════════════════
+// MAP ENGINE
+// ══════════════════════════════════════════════════════
+
+let map = null;
+let depGroup, zoneGroup;
+let depMarkers = [], zonePolys = [];
+let showDep = true, showZone = true;
+let activeChip = '', activeTab = 'dep';
+let curBM = 'osm';
+let currentLocation = null;
+
+const TILE_LAYERS = {};
+
+function commColor(c) {
+  const s = (c||'').toLowerCase();
+  if (s.includes('sunstone')||s.includes('feldspar')) return '#EF9F27';
+  if (s.includes('obsidian'))  return '#5F5E5A';
+  if (s.includes('gold'))      return '#BA7517';
+  if (s.includes('fire opal')||s.includes('opal')) return '#D85A30';
+  if (s.includes('agate')||s.includes('chalcedony')||s.includes('carnelian')) return '#378ADD';
+  if (s.includes('jasper')||s.includes('picture')) return '#D4537E';
+  if (s.includes('thunderegg')) return '#7F77DD';
+  if (s.includes('petrified')||s.includes('limb')) return '#639922';
+  if (s.includes('quartz')||s.includes('diorite')) return '#5DCAA5';
+  if (s.includes('zeolite')||s.includes('calcite')||s.includes('chlorite')) return '#9B6FA5';
+  if (s.includes('olivine')||s.includes('augite')||s.includes('plagioclase')) return '#639922';
+  return '#1D9E75';
+}
+
+function accBadge(a) {
+  const s=(a||'').toLowerCase();
+  if (s==='free')     return '<span class="badge b-free">Free / Public</span>';
+  if (s==='fee')      return '<span class="badge b-fee">Fee dig</span>';
+  if (s==='private')  return '<span class="badge b-chk">Private</span>';
+  return '<span class="badge b-chk">Check regs</span>';
+}
+
+function makePin(color) {
+  return L.divIcon({
+    html:`<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="13" cy="13" r="11" fill="${color}" stroke="white" stroke-width="2.5"/>
+      <polygon points="13,33 7,20 19,20" fill="${color}"/>
+      <circle cx="13" cy="13" r="4.5" fill="white" opacity="0.4"/>
+    </svg>`,
+    className:'', iconSize:[26,34], iconAnchor:[13,34], popupAnchor:[0,-32]
+  });
+}
+
+function initMap(locKey) {
+  currentLocation = LOCATIONS[locKey];
+  const loc = currentLocation;
+
+  // Show app, hide landing
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // Update toolbar
+  document.getElementById('regionLabel').textContent = loc.region;
+  document.getElementById('fieldTipsBtn').onclick = () => {
+    if (window.sendPrompt) window.sendPrompt(loc.fieldTip);
+  };
+
+  // Build chips
+  const chiprow = document.getElementById('chiprow');
+  chiprow.innerHTML = '<span class="lbl">Filter:</span>';
+  const allChip = document.createElement('button');
+  allChip.className = 'chip on'; allChip.dataset.c = ''; allChip.textContent = 'All';
+  chiprow.appendChild(allChip);
+  loc.chips.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'chip'; btn.dataset.c = c;
+    btn.textContent = c.charAt(0).toUpperCase() + c.slice(1);
+    chiprow.appendChild(btn);
+  });
+  chiprow.addEventListener('click', e => {
+    const chip = e.target.closest('.chip'); if (!chip) return;
+    document.querySelectorAll('#chiprow .chip').forEach(x => x.classList.remove('on'));
+    chip.classList.add('on'); activeChip = chip.dataset.c;
+    renderAll();
+  });
+
+  // Init or reset map
+  if (map) {
+    map.remove();
+    map = null;
+  }
+
+  map = L.map('map', { zoomControl: true }).setView(loc.center, loc.zoom);
+
+  TILE_LAYERS.osm     = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',    { maxZoom:19, attribution:'© OpenStreetMap contributors' });
+  TILE_LAYERS.topo    = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',      { maxZoom:17, attribution:'© OpenTopoMap, OpenStreetMap' });
+  TILE_LAYERS.outdoor = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',    { maxZoom:19, attribution:'© OpenStreetMap contributors' });
+  TILE_LAYERS.sat     = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom:19, attribution:'© Esri, Maxar' });
+
+  TILE_LAYERS.osm.addTo(map);
+  curBM = 'osm';
+  document.querySelectorAll('.bm-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('bm-osm').classList.add('on');
+
+  // Centre pin + radius
+  L.marker(loc.center, { icon: L.divIcon({
+    html:`<div style="width:13px;height:13px;background:#1D9E75;border:2.5px solid white;border-radius:50%;box-shadow:0 0 0 4px rgba(29,158,117,.3)"></div>`,
+    className:'', iconSize:[13,13], iconAnchor:[6,6]
+  })}).addTo(map).bindTooltip(loc.name, { permanent:true, direction:'right', offset:[9,0] });
+
+  L.circle(loc.center, { radius:loc.radius, color:'#1D9E75', weight:1.5, fill:false, dashArray:'6 4', opacity:0.5 }).addTo(map);
+
+  depGroup  = L.layerGroup().addTo(map);
+  zoneGroup = L.layerGroup().addTo(map);
+  activeChip = ''; activeTab = 'dep'; showDep = true; showZone = true;
+
+  document.getElementById('tog-dep').classList.add('on');
+  document.getElementById('tog-zone').classList.add('on');
+
+  renderAll();
+
+  const allPts = [...loc.deps.map(d=>[d.lat,d.lon]), ...loc.zones.flatMap(z=>z.bounds)];
+  map.fitBounds(L.latLngBounds(allPts), { padding:[40,40] });
+
+  setTimeout(() => map.invalidateSize(), 300);
+}
+
+function setBasemap(t) {
+  if (!map) return;
+  Object.values(TILE_LAYERS).forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+  TILE_LAYERS[t].addTo(map);
+  curBM = t;
+  document.querySelectorAll('.bm-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('bm-' + t).classList.add('on');
+  const labels = { osm:'OpenStreetMap', topo:'OpenTopoMap (terrain)', outdoor:'OpenStreetMap Outdoor', sat:'ESRI World Imagery' };
+  document.getElementById('bmlbl').textContent = (labels[t]||t) + ' · satellite via pin links';
+  updateStatus();
+}
+
+function toggleLayer(t) {
+  if (!map) return;
+  if (t === 'dep') {
+    showDep = !showDep;
+    document.getElementById('tog-dep').classList.toggle('on', showDep);
+    showDep ? map.addLayer(depGroup) : map.removeLayer(depGroup);
+  } else {
+    showZone = !showZone;
+    document.getElementById('tog-zone').classList.toggle('on', showZone);
+    showZone ? map.addLayer(zoneGroup) : map.removeLayer(zoneGroup);
+  }
+}
+
+function switchTab(t) {
+  activeTab = t;
+  document.getElementById('sbt-dep').classList.toggle('on',  t === 'dep');
+  document.getElementById('sbt-zone').classList.toggle('on', t === 'zone');
+  renderSidebar();
+}
+
+function highlightItem(id) {
+  document.querySelectorAll('.sitem, .zitem').forEach(x => x.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('active'); el.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+}
+
+function updateStatus() {
+  if (!currentLocation) return;
+  const loc = currentLocation;
+  const fd = activeChip ? loc.deps.filter(d=>[d.c1,d.c2,d.c3,d.note].join(' ').toLowerCase().includes(activeChip)) : loc.deps;
+  const fz = activeChip ? loc.zones.filter(z=>z.mins.join(' ').toLowerCase().includes(activeChip)) : loc.zones;
+  const labels = { osm:'OpenStreetMap', topo:'OpenTopoMap', outdoor:'OpenStreetMap', sat:'ESRI Satellite' };
+  document.getElementById('stxt').textContent = `${fd.length} sites · ${fz.length} zones · ${loc.region} · ${labels[curBM]||curBM}${activeChip?' · filter: '+activeChip:''}`;
+}
+
+function renderAll() {
+  if (!map || !currentLocation) return;
+  const loc = currentLocation;
+
+  depGroup.clearLayers();  depMarkers = [];
+  zoneGroup.clearLayers(); zonePolys  = [];
+
+  const fd = activeChip ? loc.deps.filter(d=>[d.c1,d.c2,d.c3,d.note].join(' ').toLowerCase().includes(activeChip)) : loc.deps;
+  const fz = activeChip ? loc.zones.filter(z=>z.mins.join(' ').toLowerCase().includes(activeChip)) : loc.zones;
+
+  document.getElementById('sbcount').textContent = `${fd.length} sites · ${fz.length} zones`;
+  document.getElementById('sbt-dep').textContent  = `Sites (${fd.length})`;
+  document.getElementById('sbt-zone').textContent = `Zones (${fz.length})`;
+
+  // Zones first (below pins)
+  fz.forEach((zone, i) => {
+    const op = zone.conf >= 85 ? 0.18 : zone.conf >= 70 ? 0.12 : 0.07;
+    const poly = L.polygon(zone.bounds, { color:'#7B72E8', weight:2, fillColor:'#534AB7', fillOpacity:op, dashArray:'6 4' });
+    const cLat = zone.bounds.reduce((s,b)=>s+b[0],0)/zone.bounds.length;
+    const cLon = zone.bounds.reduce((s,b)=>s+b[1],0)/zone.bounds.length;
+    poly.bindPopup(`<div>
+      <div class="pop-name" style="color:#534AB7">${zone.name}</div>
+      <div class="pop-fm">${zone.rock}</div>
+      <div style="margin-bottom:6px">${zone.mins.map(m=>'<span class="min-pill">'+m+'</span>').join('')}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+        <div style="flex:1;height:4px;background:#e8e6e0;border-radius:2px;overflow:hidden"><div style="width:${zone.conf}%;height:100%;background:#534AB7;border-radius:2px"></div></div>
+        <span style="font-size:10px;font-weight:700;color:#534AB7;font-family:'IBM Plex Mono',monospace">${zone.conf}% confidence</span>
+      </div>
+      <div class="pop-note">${zone.why}</div>
+      <div class="pop-row" style="margin-top:5px"><span>Access</span><span style="font-size:10px;max-width:130px;text-align:right">${zone.acc}</span></div>
+      <div class="pop-acts">
+        <a class="pop-btn sat" href="https://maps.google.com/?q=${cLat},${cLon}&t=k" target="_blank">🛰 Satellite view</a>
+        <button class="pop-btn ask" onclick="window.sendPrompt&&sendPrompt('Tell me about collecting in the ${zone.name.replace(/'/g,'')} in Oregon — best spots, what to look for, and access details.')">✦ Ask Claude ↗</button>
+      </div>
+    </div>`);
+    poly.on('click', () => { switchTab('zone'); highlightItem('zi-' + i); });
+    zoneGroup.addLayer(poly);
+    zonePolys.push(poly);
+  });
+
+  // Deposit pins on top
+  fd.forEach((dep, i) => {
+    const color  = commColor(dep.c1);
+    const comods = [dep.c1, dep.c2, dep.c3].filter(Boolean).join(' · ');
+    const marker = L.marker([dep.lat, dep.lon], { icon: makePin(color) });
+    marker.bindPopup(`<div>
+      <div class="pop-name" style="color:${color}">${dep.name}</div>
+      ${accBadge(dep.acc)}
+      <div class="pop-commod" style="color:${color}">${comods}</div>
+      <div class="pop-row"><span>Formation</span><span style="font-size:10px;max-width:130px;text-align:right">${dep.fm}</span></div>
+      <div class="pop-row"><span>County</span><span>${dep.co} Co, OR</span></div>
+      <div class="pop-note">${dep.note}</div>
+      <div class="pop-acts">
+        <a class="pop-btn sat" href="https://maps.google.com/?q=${dep.lat},${dep.lon}&t=k" target="_blank">🛰 Satellite view</a>
+        <a class="pop-btn" href="https://maps.google.com/?q=${dep.lat},${dep.lon}" target="_blank">📍 Directions</a>
+        <button class="pop-btn ask" onclick="window.sendPrompt&&sendPrompt('Tell me more about rockhounding at ${dep.name.replace(/'/g,'')} in Oregon — exact spots, tools to bring, best season, and what ${dep.c1} to look for.')">✦ Ask Claude ↗</button>
+      </div>
+    </div>`);
+    marker.on('click', () => { switchTab('dep'); highlightItem('di-' + i); });
+    depGroup.addLayer(marker);
+    depMarkers.push(marker);
+  });
+
+  renderSidebar();
+  updateStatus();
+}
+
+function renderSidebar() {
+  if (!currentLocation) return;
+  const loc = currentLocation;
+  const list = document.getElementById('sblist');
+  list.innerHTML = '';
+
+  if (activeTab === 'dep') {
+    const fd = activeChip ? loc.deps.filter(d=>[d.c1,d.c2,d.c3,d.note].join(' ').toLowerCase().includes(activeChip)) : loc.deps;
+    if (!fd.length) { list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#888780;font-size:12px">No sites match this filter.</div>'; return; }
+    fd.forEach((dep, i) => {
+      const color = commColor(dep.c1);
+      const el = document.createElement('div');
+      el.className = 'sitem'; el.id = 'di-' + i;
+      el.innerHTML = `<div style="position:absolute;left:0;top:0;width:3px;height:100%;background:${color};border-radius:2px 0 0 2px"></div>
+        <div class="sname">${dep.name}</div>
+        <div class="scommod">${[dep.c1,dep.c2,dep.c3].filter(Boolean).join(' · ')}</div>
+        <div class="smeta">${dep.co} Co · ${dep.acc==='free'?'🟢 Free':dep.acc==='fee'?'🟡 Fee dig':'🔴 Private/restricted'}</div>
+        <div class="smeta" style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#B4B2A9">${dep.fm}</div>`;
+      el.onclick = () => {
+        const idx = loc.deps.indexOf(dep);
+        if (idx >= 0 && depMarkers[idx]) { map.setView([dep.lat, dep.lon], 13); depMarkers[idx].openPopup(); }
+        highlightItem('di-' + i);
+      };
+      list.appendChild(el);
+    });
+  } else {
+    const fz = activeChip ? loc.zones.filter(z=>z.mins.join(' ').toLowerCase().includes(activeChip)) : loc.zones;
+    if (!fz.length) { list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#888780;font-size:12px">No zones match this filter.</div>'; return; }
+    fz.forEach((zone, i) => {
+      const el = document.createElement('div');
+      el.className = 'zitem'; el.id = 'zi-' + i;
+      el.innerHTML = `<div style="position:absolute;left:0;top:0;width:3px;height:100%;background:#534AB7;border-radius:2px 0 0 2px"></div>
+        <div class="zname">${zone.name}</div>
+        <div class="zcommod">${zone.mins.slice(0,3).join(' · ')}</div>
+        <div class="zmeta">${zone.rock}</div>
+        <div class="confbar"><div class="conffill" style="width:${zone.conf}%"></div></div>
+        <div class="zmeta" style="margin-top:3px">${zone.conf}% confidence · ${zone.acc}</div>`;
+      el.onclick = () => {
+        const idx = loc.zones.indexOf(zone);
+        if (idx >= 0 && zonePolys[idx]) { map.fitBounds(zone.bounds, { padding:[30,30] }); zonePolys[idx].openPopup(); }
+        highlightItem('zi-' + i);
+      };
+      list.appendChild(el);
+    });
+  }
+}
+
+function openApp(locKey) {
+  initMap(locKey);
+}
+
+function goHome() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('landing').style.display = 'flex';
+  if (map) { map.remove(); map = null; }
+  currentLocation = null;
+}
+
+</script>
+</body>
+</html>
