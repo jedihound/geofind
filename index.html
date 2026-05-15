@@ -1020,12 +1020,14 @@ function renderSidebar() {
     fz.forEach((zone, i) => {
       const el = document.createElement('div');
       el.className = 'zitem'; el.id = 'zi-' + i;
+      const zSrc = zone.source || '';
+      const zSrcLabel = zSrc === 'DOGAMI OGDC6' ? '🟢 DOGAMI mapped' : '🔷 AI inferred';
       el.innerHTML = `<div style="position:absolute;left:0;top:0;width:3px;height:100%;background:#534AB7;border-radius:2px 0 0 2px"></div>
         <div class="zname">${zone.name}</div>
         <div class="zcommod">${zone.mins.slice(0,3).join(' · ')}</div>
         <div class="zmeta">${zone.rock}</div>
         <div class="confbar"><div class="conffill" style="width:${zone.conf}%"></div></div>
-        <div class="zmeta" style="margin-top:3px">${zone.conf}% confidence · ${zone.acc}</div>`;
+        <div class="zmeta" style="margin-top:3px">${zSrcLabel} · ${zone.conf}%</div>`;
       el.onclick = () => {
         const idx = loc.zones.indexOf(zone);
         if (idx >= 0 && zonePolys[idx]) { map.fitBounds(zone.bounds, { padding:[30,30] }); zonePolys[idx].openPopup(); }
