@@ -865,7 +865,7 @@ function updateStatus() {
   if (!currentLocation) return;
   const loc = currentLocation;
   const fd = activeChip ? loc.deps.filter(d=>[d.c1,d.c2,d.c3,d.note].join(' ').toLowerCase().includes(activeChip)) : loc.deps;
-  const fz = activeChip ? loc.zones.filter(z=>z.mins.join(' ').toLowerCase().includes(activeChip)) : loc.zones;
+  const fz = activeChip ? loc.zones.filter(z=>(z.mins||z.minerals||[]).join(' ').toLowerCase().includes(activeChip)) : loc.zones;
   const labels = { osm:'OpenStreetMap', topo:'OpenTopoMap', outdoor:'OpenStreetMap', sat:'ESRI Satellite' };
   document.getElementById('stxt').textContent = `${fd.length} sites · ${fz.length} zones · ${loc.region} · ${labels[curBM]||curBM}${activeChip?' · filter: '+activeChip:''}`;
 }
@@ -878,7 +878,7 @@ function renderAll() {
   zoneGroup.clearLayers(); zonePolys  = [];
 
   const fd = activeChip ? loc.deps.filter(d=>[d.c1,d.c2,d.c3,d.note].join(' ').toLowerCase().includes(activeChip)) : loc.deps;
-  const fz = activeChip ? loc.zones.filter(z=>z.mins.join(' ').toLowerCase().includes(activeChip)) : loc.zones;
+  const fz = activeChip ? loc.zones.filter(z=>(z.mins||z.minerals||[]).join(' ').toLowerCase().includes(activeChip)) : loc.zones;
 
   document.getElementById('sbcount').textContent = `${fd.length} sites · ${fz.length} zones`;
   document.getElementById('sbt-dep').textContent  = `Sites (${fd.length})`;
@@ -886,23 +886,44 @@ function renderAll() {
 
   // Zones first (below pins)
   fz.forEach((zone, i) => {
+    // Normalise field names — pre-loaded zones use mins/acc, live zones use minerals/access
+    const zoneMins   = zone.mins     || zone.minerals || [];
+    const zoneAcc    = zone.acc      || zone.access   || 'Check local regulations';
+    const zoneWhy    = zone.why      || zone.rationale|| '';
+    const zoneRock   = zone.rock     || zone.rockType || '';
+    const zoneSource = zone.source   || '';
+    const zoneAge    = zone.age      || '';
+    const zoneBounds = zone.bounds;
+
+    // Skip zones with no valid bounds
+    if (!zoneBounds || zoneBounds.length < 3) return;
+
+    // Validate all coordinates are real numbers
+    const validBounds = zoneBounds.filter(b => Array.isArray(b) && b.length >= 2 && !isNaN(b[0]) && !isNaN(b[1]) && Math.abs(b[0]) <= 90 && Math.abs(b[1]) <= 180);
+    if (validBounds.length < 3) return;
+
     const op = zone.conf >= 85 ? 0.18 : zone.conf >= 70 ? 0.12 : 0.07;
-    const poly = L.polygon(zone.bounds, { color:'#7B72E8', weight:2, fillColor:'#534AB7', fillOpacity:op, dashArray:'6 4' });
-    const cLat = zone.bounds.reduce((s,b)=>s+b[0],0)/zone.bounds.length;
-    const cLon = zone.bounds.reduce((s,b)=>s+b[1],0)/zone.bounds.length;
+    const poly = L.polygon(validBounds, { color:'#7B72E8', weight:2, fillColor:'#534AB7', fillOpacity:op, dashArray:'6 4' });
+    const cLat = validBounds.reduce((s,b)=>s+b[0],0)/validBounds.length;
+    const cLon = validBounds.reduce((s,b)=>s+b[1],0)/validBounds.length;
+    const zoneSrcLabel = zoneSource === 'DOGAMI OGDC6'
+      ? '<span class="badge" style="background:#E1F5EE;color:#085041;display:inline-block;margin-bottom:4px">DOGAMI OGDC6 — Real geology</span>'
+      : '<span class="badge" style="background:#EEEDFE;color:#534AB7;display:inline-block;margin-bottom:4px">AI Geological Inference</span>';
     poly.bindPopup(`<div>
       <div class="pop-name" style="color:#534AB7">${zone.name}</div>
-      <div class="pop-fm">${zone.rock}</div>
-      <div style="margin-bottom:6px">${zone.mins.map(m=>'<span class="min-pill">'+m+'</span>').join('')}</div>
+      ${zoneSrcLabel}
+      <div class="pop-fm">${zoneRock}</div>
+      ${zoneAge ? `<div style="font-size:10px;color:#888780;margin-bottom:4px;font-family:'IBM Plex Mono',monospace">Age: ${zoneAge}</div>` : ''}
+      <div style="margin-bottom:6px">${zoneMins.map(m=>'<span class="min-pill">'+m+'</span>').join('')}</div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
         <div style="flex:1;height:4px;background:#e8e6e0;border-radius:2px;overflow:hidden"><div style="width:${zone.conf}%;height:100%;background:#534AB7;border-radius:2px"></div></div>
         <span style="font-size:10px;font-weight:700;color:#534AB7;font-family:'IBM Plex Mono',monospace">${zone.conf}% confidence</span>
       </div>
-      <div class="pop-note">${zone.why}</div>
-      <div class="pop-row" style="margin-top:5px"><span>Access</span><span style="font-size:10px;max-width:130px;text-align:right">${zone.acc}</span></div>
+      <div class="pop-note">${zoneWhy}</div>
+      <div class="pop-row" style="margin-top:5px"><span>Access</span><span style="font-size:10px;max-width:130px;text-align:right">${zoneAcc}</span></div>
       <div class="pop-acts">
         <a class="pop-btn sat" href="https://maps.google.com/?q=${cLat},${cLon}&t=k" target="_blank">🛰 Satellite view</a>
-        <button class="pop-btn ask" onclick="window.sendPrompt&&sendPrompt('Tell me about collecting in the ${zone.name.replace(/'/g,'')} in Oregon — best spots, what to look for, and access details.')">✦ Ask Claude ↗</button>
+        <button class="pop-btn ask" onclick="window.sendPrompt&&sendPrompt('Tell me about collecting in the ${zone.name.replace(/'/g,'')} geological formation — what minerals to expect, how to find them, and access details.')">✦ Ask Claude ↗</button>
       </div>
     </div>`);
     poly.on('click', () => { switchTab('zone'); highlightItem('zi-' + i); });
@@ -1017,7 +1038,7 @@ function renderSidebar() {
       list.appendChild(el);
     });
   } else {
-    const fz = activeChip ? loc.zones.filter(z=>z.mins.join(' ').toLowerCase().includes(activeChip)) : loc.zones;
+    const fz = activeChip ? loc.zones.filter(z=>(z.mins||z.minerals||[]).join(' ').toLowerCase().includes(activeChip)) : loc.zones;
     if (!fz.length) { list.innerHTML = '<div style="padding:1.5rem;text-align:center;color:#888780;font-size:12px">No zones match this filter.</div>'; return; }
     fz.forEach((zone, i) => {
       const el = document.createElement('div');
